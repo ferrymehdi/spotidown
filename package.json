@@ -1,0 +1,16 @@
+{
+  "name": "spotidown",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "puppeteer": "^24.16.1"
+  }
+}
