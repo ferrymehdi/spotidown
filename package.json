@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "express": "^5.1.0",
-    "puppeteer": "^24.16.1"
+    "puppeteer": "^24.16.1",
+    "spotify-web-api-node": "^5.0.2"
   }
 }

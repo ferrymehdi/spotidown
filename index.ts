@@ -1,5 +1,6 @@
 import { serve } from "bun";
 import puppeteer, { Browser, Page } from "puppeteer";
+import SpotifyWebApi from "spotify-web-api-node";
 
 const PORT = 3045;
 
@@ -8,7 +9,11 @@ let page: Page | null = null;
 
 // Launch browser and page ONCE
 async function initBrowserAndPage() {
-  if (!browser) browser = await puppeteer.launch({ headless: true });
+  if (!browser)
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
   if (!page) {
     page = await browser.newPage();
     await page.goto("https://spotidown.app/", { waitUntil: "networkidle2" });
@@ -172,15 +177,11 @@ async function getDownloadUrl(
 
 serve({
   port: PORT,
-  fetch: async (req) => {
-    const url = new URL(req.url);
-    if (url.pathname === "/track") {
-      const trackId = url.searchParams.get("q");
+  routes: {
+    "/track/:id": async (req) => {
+      const trackId = req.params.id;
       if (!trackId) {
-        return new Response(
-          JSON.stringify({ error: true, message: "Missing 'q' parameter" }),
-          { status: 400 },
-        );
+        return new Response("Track ID is required", { status: 400 });
       }
       try {
         const {
@@ -188,20 +189,71 @@ serve({
           name,
           artist,
         } = await getDownloadUrl(trackId);
-        return new Response(
-          JSON.stringify({ error: false, url: downloadUrl, name, artist }),
-          {
-            headers: { "content-type": "application/json" },
-          },
-        );
+
+        // Redirect to the download URL
+        return Response.redirect(downloadUrl, 302);
+        // return new Response(
+        //   JSON.stringify({ error: false, url: downloadUrl, name, artist }),
+        //   {
+        //     headers: { "content-type": "application/json" },
+        //   },
+        // );
       } catch (err: any) {
         return new Response(
           JSON.stringify({ error: true, message: err.message }),
           { status: 500 },
         );
       }
-    }
-    return new Response("Not found", { status: 404 });
+    },
+    "/isrc/:isrc": async (req) => {
+      const clientId = "469b4c39a2fb4b3f89436821b505caef";
+      const clientSecret = "c26515473c5c49cf9d6fb50c82a8ec90";
+      const isrc = req.params.isrc;
+      if (!isrc) {
+        return new Response("ISRC is required", { status: 400 });
+      }
+      const spotifyApi = new SpotifyWebApi({ clientId, clientSecret });
+      await spotifyApi
+        .clientCredentialsGrant()
+        .then((data: any) =>
+          spotifyApi.setAccessToken(data.body["access_token"]),
+        );
+      const data = await spotifyApi.searchTracks(`isrc:${isrc}`);
+      //get the fist track from the search and get its ID and get the download URL
+      if (data.body.tracks.items.length > 0) {
+        const track = data.body.tracks.items[0];
+        const trackId = track.id;
+        if (!trackId) {
+          return new Response(
+            JSON.stringify({ error: "No track found with that ISRC" }),
+            { status: 404, headers: { "content-type": "application/json" } },
+          );
+        }
+        try {
+          const {
+            url: downloadUrl,
+            name,
+            artist,
+          } = await getDownloadUrl(trackId);
+          //redirect to the download URL
+
+          // return new Response(
+          //   JSON.stringify({ error: false, url: downloadUrl, name, artist }),
+          //   { headers: { "content-type": "application/json" } },
+          // );
+          return Response.redirect(downloadUrl, 302);
+        } catch (err: any) {
+          return new Response(
+            JSON.stringify({ error: true, message: err.message }),
+            { status: 500 },
+          );
+        }
+      }
+      return new Response(
+        JSON.stringify({ error: "No track found with that ISRC" }),
+        { status: 404, headers: { "content-type": "application/json" } },
+      );
+    },
   },
 });
 
