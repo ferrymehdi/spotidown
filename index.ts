@@ -1,6 +1,8 @@
 import { serve } from "bun";
 import puppeteer, { Browser, Page } from "puppeteer";
 import SpotifyWebApi from "spotify-web-api-node";
+import dotenv from "dotenv";
+dotenv.config();
 
 const PORT = 3045;
 
@@ -67,7 +69,7 @@ async function getDownloadUrl(
     // @ts-ignore
     return new Promise<string>((resolve) => {
       // @ts-ignore
-      grecaptcha.ready(function () {
+      grecaptcha.ready(function() {
         // @ts-ignore
         grecaptcha
           .execute("6LcXkaUqAAAAAGvO0z9Mg54lpG22HE4gkl3XYFTK", {
@@ -206,8 +208,8 @@ serve({
       }
     },
     "/isrc/:isrc": async (req) => {
-      const clientId = "469b4c39a2fb4b3f89436821b505caef";
-      const clientSecret = "c26515473c5c49cf9d6fb50c82a8ec90";
+      const clientId = process.env.CLIENT_ID || "";
+      const clientSecret = process.env.CLIENT_SECRET || "";
       const isrc = req.params.isrc;
       if (!isrc) {
         return new Response("ISRC is required", { status: 400 });
